@@ -1,0 +1,27 @@
+{
+  "common": {
+    "error": "An error occurred. Please try again later.",
+    "cooldown": "Please wait before using this command again.",
+    "notFound": "Not found.",
+    "comingSoon": "This feature is coming soon!"
+  },
+  "commands": {
+    "ping": {
+      "title": "Pong!",
+      "wsLatency": "WebSocket Latency",
+      "apiLatency": "API Latency"
+    },
+    "start": {
+      "title": "Your Journey Awaits",
+      "description": "Ascension Legends is still being forged in the fires of creation."
+    },
+    "profile": {
+      "title": "{username}'s Profile",
+      "notStarted": "Your legend is still being written. Use /start to begin your journey."
+    },
+    "help": {
+      "title": "Ascension Legends — Help",
+      "description": "Welcome to Ascension Legends, a high-fidelity Discord MMORPG."
+    }
+  }
+}
