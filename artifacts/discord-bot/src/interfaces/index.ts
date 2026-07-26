@@ -1,6 +1,7 @@
-export type * from './IPlayerService.js';
+export type * from './ICacheService.js';
+export type * from './ICharacterService.js';
 export type * from './IEconomyService.js';
 export type * from './IGuildService.js';
 export type * from './IInventoryService.js';
-export type * from './ICacheService.js';
+export type * from './IPlayerService.js';
 export type * from './IRepository.js';

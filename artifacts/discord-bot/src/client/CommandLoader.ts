@@ -32,6 +32,7 @@ export async function loadCommands(client: AscensionClient, commandsDir: string)
     try {
       const module = await import(pathToFileURL(file).href) as { default?: SlashCommand };
       const command = module.default;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!command?.data || !command.execute) {
         log.warn('Skipping file — missing data or execute export', { file });
         continue;

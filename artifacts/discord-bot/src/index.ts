@@ -21,8 +21,8 @@ import { env } from './config/index.js';
 import { connectMongo, disconnectMongo } from './database/mongo.js';
 import { connectRedis, disconnectRedis, getRedisClient } from './database/redis.js';
 import { closeQueues } from './jobs/index.js';
-import { UserRepository, WalletRepository, GuildRepository } from './repositories/index.js';
-import { PlayerService, EconomyService, GuildService } from './services/index.js';
+import { CharacterRepository, UserRepository, WalletRepository, GuildRepository } from './repositories/index.js';
+import { CharacterService, PlayerService, EconomyService, GuildService } from './services/index.js';
 import { startHealthServer, setDiscordReady } from './utils/health.js';
 import { logger } from './utils/logger.js';
 import { startRenderWorker, stopRenderWorker } from './workers/index.js';
@@ -43,6 +43,7 @@ async function bootstrap(): Promise<void> {
   const userRepo = new UserRepository();
   const walletRepo = new WalletRepository();
   const guildRepo = new GuildRepository();
+  const characterRepo = new CharacterRepository();
 
   // Services are constructed and ready to be injected into command handlers.
   // They are intentionally stored here as the DI container root.
@@ -50,6 +51,7 @@ async function bootstrap(): Promise<void> {
     player: new PlayerService(userRepo, cache),
     economy: new EconomyService(walletRepo, cache),
     guild: new GuildService(guildRepo),
+    character: new CharacterService(characterRepo, cache),
   };
   void services; // DI root — commands will reference these when gameplay is implemented
 

@@ -24,6 +24,7 @@ export async function loadEvents(client: AscensionClient, eventsDir: string): Pr
       const module = await import(pathToFileURL(fullPath).href) as { default?: EventHandler };
       const event = module.default;
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!event?.name || !event.execute) {
         log.warn('Skipping event file — missing name or execute', { file });
         continue;
