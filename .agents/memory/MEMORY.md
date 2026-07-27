@@ -1,2 +1,3 @@
 - [Sprint 2 Player Creation](sprint2-player-creation.md) — full /start + /profile flow; Canvas fallback; PR formula normalises % stats ÷100 before ×multiplier
 - [Git push blocked](git-push.md) — GitHub push times out in Replit shell; commit locally, user must push manually or set up credentials
+- [Battle Engine Source](battle-engine-source.md) — uploaded Sprint 3 archive is an index/prompt; detailed rules came from Book 1 and the existing stat model

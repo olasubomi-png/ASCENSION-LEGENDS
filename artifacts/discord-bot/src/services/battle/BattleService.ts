@@ -1,22 +1,46 @@
-import { childLogger } from '../../utils/logger.js';
+import { generateIdWithPrefix } from '../../utils/ulid.js';
+import { ID_PREFIXES } from '../../constants/index.js';
+import { BattleEngine } from './BattleEngine.js';
+import type { BattleInput, BattleParticipant, BattleResult } from './types.js';
 
-const log = childLogger('BattleService');
+export interface BattleStartOptions {
+  participants: [BattleParticipant, BattleParticipant];
+  seed?: string | number;
+  battleId?: string;
+  actions?: BattleInput['actions'];
+  maxRounds?: number;
+  type?: BattleInput['type'];
+}
 
 /**
- * BattleService — manages PvP and PvE combat resolution.
+ * Application boundary around the deterministic engine.
  *
- * PLACEHOLDER: Implementation will follow ADR-007 (Deterministic Battle Engine)
- * using a seeded Xorshift128 RNG for reproducibility and anti-cheat.
- * Battle processing runs in isolated BullMQ workers (ADR-011).
+ * Persistence is intentionally injected later: this service keeps the latest
+ * replay in memory for now, while callers already receive a complete result.
  */
 export class BattleService {
-  async initiateBattle(_attackerId: string, _defenderId: string): Promise<void> {
-    log.info('BattleService.initiateBattle — placeholder');
-    throw new Error('Battle system not yet implemented');
+  private readonly replays = new Map<string, BattleResult>();
+
+  constructor(private readonly engine = new BattleEngine()) {}
+
+  async initiateBattle(attackerId: string, defenderId: string, options?: BattleStartOptions): Promise<BattleResult> {
+    if (!options?.participants) {
+      throw new Error('Battle participants and stats are required to start a battle');
+    }
+    const battleId = options.battleId ?? generateIdWithPrefix(ID_PREFIXES.BATTLE);
+    const result = this.engine.run({
+      battleId,
+      seed: options.seed ?? `${attackerId}:${defenderId}`,
+      participants: options.participants,
+      actions: options.actions,
+      maxRounds: options.maxRounds,
+      type: options.type,
+    });
+    this.replays.set(battleId, result);
+    return result;
   }
 
-  async getBattleReplay(_battleId: string): Promise<void> {
-    log.info('BattleService.getBattleReplay — placeholder');
-    throw new Error('Battle system not yet implemented');
+  async getBattleReplay(battleId: string): Promise<BattleResult | null> {
+    return this.replays.get(battleId) ?? null;
   }
 }

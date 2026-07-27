@@ -5,3 +5,6 @@ export { InventoryService } from './inventory/InventoryService.js';
 export { PlayerService } from './player/PlayerService.js';
 export { ProfileService } from './profile/ProfileService.js';
 export { RegistrationService } from './registration/RegistrationService.js';
+export { BattleEngine } from './battle/BattleEngine.js';
+export { BattleService } from './battle/BattleService.js';
+export type * from './battle/types.js';

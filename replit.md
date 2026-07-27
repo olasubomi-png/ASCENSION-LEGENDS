@@ -70,7 +70,7 @@ See `artifacts/discord-bot/.env.example` for full list. Key required vars:
 
 ## Current status
 
-Architecture foundation complete. Slash commands are placeholder (/ping is fully functional; /start, /profile, /help are stubs). No gameplay implemented yet — that is the next phase.
+Architecture foundation and the deterministic Sprint 3 battle engine are implemented. The battle engine is pure and replayable with seeded Xorshift128 randomness, initiative, damage/affinity, criticals, dodge, block/parry/counter, shields, healing, statuses, combos, ultimate gauge, and structured replay events. Battle persistence, queue workers, and Discord battle commands remain follow-up integrations. Slash commands are otherwise placeholder (/ping is fully functional; /start, /profile, /help are stubs).
 
 ## User preferences
 
