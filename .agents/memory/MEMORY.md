@@ -1,0 +1,2 @@
+- [Sprint 2 Player Creation](sprint2-player-creation.md) — full /start + /profile flow; Canvas fallback; PR formula normalises % stats ÷100 before ×multiplier
+- [Git push blocked](git-push.md) — GitHub push times out in Replit shell; commit locally, user must push manually or set up credentials
