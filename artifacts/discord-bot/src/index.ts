@@ -5,24 +5,43 @@
  *  1. Validate environment variables
  *  2. Connect to MongoDB
  *  3. Connect to Redis
- *  4. Instantiate services (dependency injection)
- *  5. Load commands & events
- *  6. Start BullMQ workers
- *  7. Start health-check HTTP server
- *  8. Login to Discord
- *  9. Register graceful shutdown handlers
+ *  4. Instantiate repositories
+ *  5. Instantiate services (dependency injection)
+ *  6. Load commands, events, buttons, modals
+ *  7. Attach services to client (DI container)
+ *  8. Start BullMQ workers
+ *  9. Start health-check HTTP server
+ * 10. Login to Discord
+ * 11. Register graceful shutdown handlers
  */
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { classSelectHandler } from './buttons/index.js';
 import { CacheService } from './cache/index.js';
 import { AscensionClient, loadCommands, loadEvents } from './client/index.js';
 import { env } from './config/index.js';
 import { connectMongo, disconnectMongo } from './database/mongo.js';
 import { connectRedis, disconnectRedis, getRedisClient } from './database/redis.js';
 import { closeQueues } from './jobs/index.js';
-import { CharacterRepository, UserRepository, WalletRepository, GuildRepository } from './repositories/index.js';
-import { CharacterService, PlayerService, EconomyService, GuildService } from './services/index.js';
+import { characterNameModal } from './modals/index.js';
+import {
+  CharacterRepository,
+  GuildRepository,
+  InventoryRepository,
+  ProfileRepository,
+  UserRepository,
+  WalletRepository,
+} from './repositories/index.js';
+import {
+  CharacterService,
+  EconomyService,
+  GuildService,
+  InventoryService,
+  PlayerService,
+  ProfileService,
+  RegistrationService,
+} from './services/index.js';
 import { startHealthServer, setDiscordReady } from './utils/health.js';
 import { logger } from './utils/logger.js';
 import { startRenderWorker, stopRenderWorker } from './workers/index.js';
@@ -36,7 +55,7 @@ async function bootstrap(): Promise<void> {
   await connectMongo();
   await connectRedis();
 
-  // ── 2. Dependency injection ─────────────────────────────────────────────
+  // ── 2. Repositories ─────────────────────────────────────────────────────
   const redis = getRedisClient();
   const cache = new CacheService(redis);
 
@@ -44,20 +63,39 @@ async function bootstrap(): Promise<void> {
   const walletRepo = new WalletRepository();
   const guildRepo = new GuildRepository();
   const characterRepo = new CharacterRepository();
+  const inventoryRepo = new InventoryRepository();
+  const profileRepo = new ProfileRepository();
 
-  // Services are constructed and ready to be injected into command handlers.
-  // They are intentionally stored here as the DI container root.
-  const services = {
-    player: new PlayerService(userRepo, cache),
-    economy: new EconomyService(walletRepo, cache),
-    guild: new GuildService(guildRepo),
-    character: new CharacterService(characterRepo, cache),
-  };
-  void services; // DI root — commands will reference these when gameplay is implemented
+  // ── 3. Services (DI) ────────────────────────────────────────────────────
+  const playerService = new PlayerService(userRepo, cache);
+  const economyService = new EconomyService(walletRepo, cache);
+  const guildService = new GuildService(guildRepo);
+  const characterService = new CharacterService(characterRepo, cache);
+  const inventoryService = new InventoryService(inventoryRepo, cache);
+  const profileService = new ProfileService(profileRepo, cache);
 
-  // ── 3. Discord client ───────────────────────────────────────────────────
+  const registrationService = new RegistrationService(
+    playerService,
+    characterService,
+    economyService,
+    inventoryService,
+    profileService,
+    walletRepo,
+    characterRepo,
+  );
+
+  void guildService; // used in future sprints
+
+  // ── 4. Discord client ───────────────────────────────────────────────────
   const client = new AscensionClient();
 
+  // Attach services for command handler access
+  client.registrationService = registrationService;
+  client.characterService = characterService;
+  client.economyService = economyService;
+  client.profileService = profileService;
+
+  // ── 5. Load commands, events, buttons, modals ───────────────────────────
   const commandsDir = resolve(__dirname, 'commands');
   const eventsDir = resolve(__dirname, 'events');
 
@@ -66,19 +104,28 @@ async function bootstrap(): Promise<void> {
     loadEvents(client, eventsDir),
   ]);
 
-  // ── 4. BullMQ workers ───────────────────────────────────────────────────
+  // Register button handlers
+  client.buttons.set(classSelectHandler.customId, classSelectHandler);
+
+  // Register modal handlers
+  client.modals.set(characterNameModal.customId, characterNameModal);
+
+  logger.info('Button handlers registered', { count: client.buttons.size });
+  logger.info('Modal handlers registered', { count: client.modals.size });
+
+  // ── 6. BullMQ workers ───────────────────────────────────────────────────
   startRenderWorker();
 
-  // ── 5. Health server ────────────────────────────────────────────────────
+  // ── 7. Health server ────────────────────────────────────────────────────
   const healthServer = startHealthServer(env.PORT);
 
-  // ── 6. Discord ready hook ───────────────────────────────────────────────
+  // ── 8. Discord ready hook ───────────────────────────────────────────────
   client.once('ready', () => setDiscordReady(true));
 
-  // ── 7. Login ─────────────────────────────────────────────────────────────
+  // ── 9. Login ─────────────────────────────────────────────────────────────
   await client.login(env.DISCORD_TOKEN);
 
-  // ── 8. Graceful shutdown ─────────────────────────────────────────────────
+  // ── 10. Graceful shutdown ─────────────────────────────────────────────────
   async function shutdown(signal: string): Promise<void> {
     logger.info('Shutdown signal received — draining…', { signal });
 

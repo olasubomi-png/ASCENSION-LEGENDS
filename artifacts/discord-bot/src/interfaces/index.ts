@@ -4,4 +4,6 @@ export type * from './IEconomyService.js';
 export type * from './IGuildService.js';
 export type * from './IInventoryService.js';
 export type * from './IPlayerService.js';
+export type * from './IProfileService.js';
+export type * from './IRegistrationService.js';
 export type * from './IRepository.js';

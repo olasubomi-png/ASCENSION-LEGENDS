@@ -1,4 +1,5 @@
 /**
- * Modal submit handlers.
- * Each handler implements the ModalHandler interface.
+ * Modal submit handlers index.
+ * Imported and registered in bootstrap (src/index.ts).
  */
+export { default as characterNameModal } from './characterName.js';

@@ -1,40 +1,77 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+/**
+ * /start — Player registration and character creation.
+ *
+ * Flow:
+ *   1. Check if already registered → ephemeral "already registered"
+ *   2. Open character-name modal (Step 1)
+ *   3. Modal submit → validate name → show class selection (Step 2)
+ *   4. Class button click → register() → show welcome card
+ *
+ * The modal and button handlers live in:
+ *   src/modals/characterName.ts
+ *   src/buttons/classSelect.ts
+ */
+
+import { EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 import type { ChatInputCommandInteraction } from 'discord.js';
 
+import type { AscensionClient } from '../client/AscensionClient.js';
 import { EMBED_COLORS } from '../constants/discord.js';
+import { buildCharacterNameModal } from '../modals/characterName.js';
 import type { SlashCommand } from '../types/discord.js';
+import { childLogger } from '../utils/logger.js';
 
-/**
- * /start — Begins a player's journey in Ascension Legends.
- * PLACEHOLDER: Character creation, tutorial, and onboarding will be implemented
- * once the gameplay layer is built.
- */
+const log = childLogger('Command:Start');
+
 const command: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName('start')
-    .setDescription('Begin your journey in Ascension Legends.'),
+    .setDescription('Begin your journey in Ascension Legends — create your hero.'),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    const client = interaction.client as AscensionClient;
+    const registrationService = client.registrationService;
 
-    const embed = new EmbedBuilder()
-      .setTitle('⚔️ Your Journey Awaits')
-      .setDescription(
-        [
-          '**Ascension Legends** is still being forged in the fires of creation.',
-          '',
-          'The world is taking shape. Heroes will rise, battles will be fought, and legends will be written.',
-          '',
-          '> *"The greatest adventures begin with a single step."*',
-          '',
-          '🔔 Stay tuned — your adventure starts soon!',
-        ].join('\n'),
-      )
-      .setColor(EMBED_COLORS.LEGENDARY)
-      .setFooter({ text: 'Ascension Legends — Coming Soon' })
-      .setTimestamp();
+    // Fast-path: if service is unavailable, fail gracefully
+    if (!registrationService) {
+      log.error('RegistrationService not attached to client');
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setDescription('❌ Service is currently unavailable. Please try again later.')
+            .setColor(EMBED_COLORS.ERROR),
+        ],
+        ephemeral: true,
+      });
+      return;
+    }
 
-    await interaction.editReply({ embeds: [embed] });
+    // Guard: already registered
+    const alreadyRegistered = await registrationService.isRegistered(interaction.user.id);
+    if (alreadyRegistered) {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('⚔️ Already Enlisted')
+            .setDescription(
+              [
+                'You already have a character in Ascension Legends!',
+                '',
+                '> Use `/profile` to view your character.',
+              ].join('\n'),
+            )
+            .setColor(EMBED_COLORS.WARNING),
+        ],
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // Step 1: show character name modal
+    const modal = buildCharacterNameModal();
+    await interaction.showModal(modal);
+
+    log.debug('Character name modal shown', { userId: interaction.user.id });
   },
 };
 
