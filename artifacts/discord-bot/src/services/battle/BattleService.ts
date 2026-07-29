@@ -1,5 +1,6 @@
-import { generateIdWithPrefix } from '../../utils/ulid.js';
 import { ID_PREFIXES } from '../../constants/index.js';
+import { generateIdWithPrefix } from '../../utils/ulid.js';
+
 import { BattleEngine } from './BattleEngine.js';
 import type { BattleInput, BattleParticipant, BattleResult } from './types.js';
 

@@ -1,3 +1,4 @@
+import { SeededRandom } from './SeededRandom.js';
 import type {
   BattleAction,
   BattleElement,
@@ -8,6 +9,7 @@ import type {
   BattleResult,
   BattleSkill,
   BattleStatus,
+  DamageType,
   StatusType,
 } from './types.js';
 
@@ -57,14 +59,18 @@ interface RuntimeParticipant {
 /**
  * Pure, server-side battle resolver. It owns no persistence and uses only the
  * supplied seed, making a result reproducible for replay and dispute review.
+ *
+ * @see Book 1, Section 6 — Battle System
+ * @see Book 3, Section 6.13 — Deterministic Simulation
  */
 export class BattleEngine {
   run(input: BattleInput): BattleResult {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (input.participants.length !== 2) {
       throw new Error('BattleEngine requires exactly two participants');
     }
 
-    const rng = new Xorshift128(input.seed);
+    const rng = new SeededRandom(input.seed);
     const participants = input.participants.map((participant) => this.createRuntime(participant)) as [
       RuntimeParticipant,
       RuntimeParticipant,
@@ -203,7 +209,7 @@ export class BattleEngine {
     };
   }
 
-  private rollInitiative(participant: RuntimeParticipant, rng: Xorshift128): number {
+  private rollInitiative(participant: RuntimeParticipant, rng: SeededRandom): number {
     const speed = this.effectiveSpeed(participant);
     return speed + rng.int(0, Math.floor(speed * 0.15));
   }
@@ -239,6 +245,10 @@ export class BattleEngine {
         case 'bleed':
           amount = Math.max(50, Math.round(participant.source.stats.maxHp * 0.02 * (status.stacks ?? 1)));
           break;
+        case 'shock':
+          amount = Math.max(1, Math.round((status.sourceAttack ?? participant.source.stats.attack) * 0.12));
+          participant.energy = Math.max(0, participant.energy - 20);
+          break;
         case 'regeneration':
           amount = Math.max(1, Math.round(participant.source.stats.maxHp * 0.015));
           participant.hp = Math.min(participant.source.stats.maxHp, participant.hp + amount);
@@ -263,10 +273,11 @@ export class BattleEngine {
     target: RuntimeParticipant,
     action: BattleAction,
     round: number,
-    rng: Xorshift128,
+    rng: SeededRandom,
     emit: (event: Omit<BattleEvent, 'sequence'>) => void,
   ): void {
-    if (actor.statuses.some((status) => status.type === 'freeze' || status.type === 'sleep')) {
+    // Incapacitation: freeze, sleep, and stun all skip the turn.
+    if (actor.statuses.some((status) => status.type === 'freeze' || status.type === 'sleep' || status.type === 'stun')) {
       emit({ round, type: 'action', actorId: actor.source.id, action: action.type, outcome: 'incapacitated' });
       return;
     }
@@ -341,7 +352,7 @@ export class BattleEngine {
     action: BattleAction,
     skill: BattleSkill | undefined,
     round: number,
-    rng: Xorshift128,
+    rng: SeededRandom,
     emit: (event: Omit<BattleEvent, 'sequence'>) => void,
   ): void {
     const element = skill?.element ?? actor.source.element ?? 'iron';
@@ -367,10 +378,13 @@ export class BattleEngine {
 
     const critical = skill?.guaranteedCrit || (ultimate && actor.source.stats.luck > 0) || rng.percent() < actor.source.stats.critRate + (skill?.critChanceBonus ?? 0);
     const multiplier = skill?.damageMultiplier ?? 1;
-    const damageType = skill?.damageType ?? 'physical';
+    const damageType: DamageType = skill?.damageType ?? 'physical';
     let damage = this.baseDamage(actor, target, multiplier, damageType, element);
-    const affinity = AFFINITY[element][target.source.element ?? 'iron'];
-    damage *= affinity;
+    // True damage bypasses elemental affinity.
+    if (damageType !== 'true') {
+      const affinity = AFFINITY[element][target.source.element ?? 'iron'];
+      damage *= affinity;
+    }
     if (this.hasStatus(target, 'weakness')) damage *= 1.25;
     if (element === 'frost' && this.hasStatus(target, 'freeze')) {
       damage *= 1.4;
@@ -381,15 +395,18 @@ export class BattleEngine {
     if (target.blockMultiplier) damage *= target.blockMultiplier;
     damage = Math.max(1, Math.round(damage));
 
-    const shield = target.statuses.find((status) => status.type === 'shield');
+    // Shield and barrier both absorb damage before HP.
+    const absorber = target.statuses.find((status) => status.type === 'shield' || status.type === 'barrier');
     let shieldAbsorbed = 0;
-    if (shield?.value) {
-      shieldAbsorbed = Math.min(shield.value, damage);
-      shield.value -= shieldAbsorbed;
+    if (absorber?.value) {
+      shieldAbsorbed = Math.min(absorber.value, damage);
+      absorber.value -= shieldAbsorbed;
       damage -= shieldAbsorbed;
-      if (shield.value <= 0) this.removeStatus(target, 'shield', round, emit);
+      if (absorber.value <= 0) this.removeStatus(target, absorber.type, round, emit);
     }
     target.hp = Math.max(0, target.hp - damage);
+
+    const affinity = damageType !== 'true' ? AFFINITY[element][target.source.element ?? 'iron'] : 1;
     actor.combo = actor.comboElement === element ? actor.combo + 1 : 1;
     actor.comboElement = element;
     this.chargeUltimate(actor, Math.floor(damage / 100));
@@ -428,9 +445,13 @@ export class BattleEngine {
     attacker: RuntimeParticipant,
     defender: RuntimeParticipant,
     multiplier: number,
-    damageType: 'physical' | 'magic',
+    damageType: DamageType,
     _element: BattleElement,
   ): number {
+    if (damageType === 'true') {
+      // True damage bypasses all defense.
+      return Math.max(1, attacker.source.stats.attack * multiplier);
+    }
     const attack = damageType === 'magic' ? attacker.source.stats.magicAttack : attacker.source.stats.attack;
     const defense = damageType === 'magic' ? defender.source.stats.magicDefense : defender.source.stats.defense;
     return Math.max(1, attack * multiplier - defense * DEFENSE_FACTOR);
@@ -483,37 +504,6 @@ export class BattleEngine {
   }
 }
 
-class Xorshift128 {
-  private readonly state: [number, number, number, number];
-
-  constructor(seed: string | number) {
-    let hash = 2166136261;
-    for (const character of String(seed)) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
-    this.state = [
-      hash >>> 0,
-      (Math.imul(hash ^ 0x9e3779b9, 1664525) + 1013904223) >>> 0,
-      (Math.imul(hash ^ 0x243f6a88, 1103515245) + 12345) >>> 0,
-      (Math.imul(hash ^ 0xb7e15162, 22695477) + 1) >>> 0,
-    ];
-    if (this.state.every((value) => value === 0)) this.state[0] = 1;
-  }
-
-  next(): number {
-    const [x, y, z, w] = this.state;
-    const t = (x ^ (x << 11)) >>> 0;
-    this.state[0] = y;
-    this.state[1] = z;
-    this.state[2] = w;
-    this.state[3] = (w ^ (w >>> 19) ^ t ^ (t >>> 8)) >>> 0;
-    return this.state[3];
-  }
-
-  int(min: number, max: number): number {
-    if (max <= min) return min;
-    return min + (this.next() % (max - min + 1));
-  }
-
-  percent(): number {
-    return (this.next() / 0x100000000) * 100;
-  }
-}
+// Re-export for consumers that want access to the RNG directly.
+export { SeededRandom } from './SeededRandom.js';
+export { ELEMENTS };

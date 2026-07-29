@@ -1,7 +1,8 @@
 import type { ICharacterStats } from '../../models/CharacterModel.js';
 
 export type BattleElement = 'flame' | 'frost' | 'storm' | 'terra' | 'void' | 'radiance' | 'iron';
-export type DamageType = 'physical' | 'magic';
+/** physical: uses Attack vs Defense; magic: uses MagicAttack vs MagicDefense; true: bypasses all defense. */
+export type DamageType = 'physical' | 'magic' | 'true';
 export type BattleType = 'pve' | 'pvp';
 export type BattleOutcome = 'attacker_win' | 'defender_win' | 'draw' | 'retreat';
 
@@ -17,9 +18,11 @@ export type StatusType =
   | 'blind'
   | 'regeneration'
   | 'shield'
+  | 'barrier'
   | 'weakness'
   | 'slow'
-  | 'sleep';
+  | 'sleep'
+  | 'stun';
 
 export interface BattleStatus {
   type: StatusType;
@@ -27,7 +30,7 @@ export interface BattleStatus {
   stacks?: number;
   /** Attack value captured when a damage-over-time effect was applied. */
   sourceAttack?: number;
-  /** Shield hit points, or an optional custom effect value. */
+  /** Shield / barrier hit points, or an optional custom effect value. */
   value?: number;
 }
 
