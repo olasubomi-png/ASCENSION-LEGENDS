@@ -17,9 +17,11 @@ export function getRedisClient(): Redis {
     tls: env.REDIS_TLS ? {} : undefined,
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
-    // No lazyConnect — ioredis connects automatically on creation.
-    // Calling .connect() on an already-connecting client throws; omitting
-    // lazyConnect means we never need to call it manually.
+    // lazyConnect: true is required so that BullMQ's internal .duplicate() +
+    // .connect() pattern works correctly. Without it, duplicates auto-connect
+    // immediately and BullMQ's subsequent .connect() call throws
+    // "Redis is already connecting/connected".
+    lazyConnect: true,
     retryStrategy: (times: number): number | null => {
       if (times > 10) return null;
       return Math.min(times * 200, 2000);
@@ -37,13 +39,23 @@ export function getRedisClient(): Redis {
 }
 
 /**
- * Wait for the Redis client to reach the ready state.
- * Does NOT call .connect() — ioredis manages the connection automatically.
- * Safe to call multiple times or before any commands are issued.
+ * Connect the Redis singleton and wait for it to be ready.
+ * Guards against being called on an already-connecting/connected client
+ * so it is safe to call multiple times during startup.
  */
 export async function connectRedis(): Promise<void> {
   const client = getRedisClient();
+
+  // Already up — nothing to do.
   if (client.status === 'ready') return;
+
+  // Not yet started — initiate the connection.
+  if (client.status === 'wait') {
+    await client.connect();
+    return;
+  }
+
+  // Mid-connection (status: 'connecting' | 'connect') — just wait for ready.
   await new Promise<void>((resolve, reject) => {
     client.once('ready', resolve);
     client.once('error', reject);

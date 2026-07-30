@@ -16,7 +16,7 @@ export type IWallet = HydratedDocument<IWalletSchema>;
 const walletSchema = new Schema<IWalletSchema>(
   {
     _id: { type: String, required: true },
-    userId: { type: String, required: true, unique: true, index: true, ref: 'User' },
+    userId: { type: String, required: true, unique: true, ref: 'User' },
     gold: { type: Number, required: true, default: 0, min: 0 },
     gems: { type: Number, required: true, default: 0, min: 0 },
     deletedAt: { type: Date },

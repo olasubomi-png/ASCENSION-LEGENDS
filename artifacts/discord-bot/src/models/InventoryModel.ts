@@ -40,8 +40,8 @@ const inventoryItemSchema = new Schema<IInventoryItemSchema>(
 const inventorySchema = new Schema<IInventorySchema>(
   {
     _id: { type: String, required: true },
-    inventoryId: { type: String, required: true, unique: true, index: true },
-    userId: { type: String, required: true, unique: true, index: true, ref: 'User' },
+    inventoryId: { type: String, required: true, unique: true },
+    userId: { type: String, required: true, unique: true, ref: 'User' },
     discordId: { type: String, required: true, index: true },
     items: { type: [inventoryItemSchema], default: [] },
     maxSlots: { type: Number, default: 100 },
@@ -52,8 +52,6 @@ const inventorySchema = new Schema<IInventorySchema>(
     versionKey: false,
   },
 );
-
-inventorySchema.index({ userId: 1 });
 
 export const InventoryModel: Model<IInventorySchema> = mongoose.model<IInventorySchema>(
   'Inventory',

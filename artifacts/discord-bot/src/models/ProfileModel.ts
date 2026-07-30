@@ -40,8 +40,8 @@ export type IProfile = HydratedDocument<IProfileSchema>;
 const profileSchema = new Schema<IProfileSchema>(
   {
     _id: { type: String, required: true },
-    profileId: { type: String, required: true, unique: true, index: true },
-    userId: { type: String, required: true, unique: true, index: true, ref: 'User' },
+    profileId: { type: String, required: true, unique: true },
+    userId: { type: String, required: true, unique: true, ref: 'User' },
     discordId: { type: String, required: true, index: true },
     prestigeLevel: { type: Number, default: 0, min: 0, max: 10 },
     powerRating: { type: Number, default: 0, min: 0 },
