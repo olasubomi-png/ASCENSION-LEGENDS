@@ -24,4 +24,6 @@ export interface IProfileService {
   getProfile(discordId: string): Promise<Result<ProfileData | null>>;
   createProfile(userId: string, discordId: string, powerRating: number): Promise<Result<ProfileData>>;
   updatePowerRating(userId: string, powerRating: number): Promise<Result<ProfileData>>;
+  /** Record a completed battle (increments total + win or loss). */
+  recordBattleResult(userId: string, won: boolean): Promise<Result<ProfileData>>;
 }

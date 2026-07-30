@@ -28,8 +28,21 @@ export interface CreateCharacterInput {
   name: string;
 }
 
+export interface AwardExperienceResult {
+  character: CharacterProfile;
+  experienceGained: number;
+  didLevelUp: boolean;
+  levelsGained: number;
+  newLevel: number;
+}
+
 export interface ICharacterService {
   createCharacter(input: CreateCharacterInput): Promise<Result<CharacterProfile>>;
   getActiveCharacter(discordId: string): Promise<Result<CharacterProfile | null>>;
   hasCharacter(discordId: string): Promise<boolean>;
+  awardExperience(
+    characterId: string,
+    discordId: string,
+    xpGained: number,
+  ): Promise<Result<AwardExperienceResult>>;
 }

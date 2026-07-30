@@ -41,6 +41,7 @@ import {
   PlayerService,
   ProfileService,
   RegistrationService,
+  BattleService,
 } from './services/index.js';
 import { startHealthServer, setDiscordReady } from './utils/health.js';
 import { logger } from './utils/logger.js';
@@ -73,6 +74,7 @@ async function bootstrap(): Promise<void> {
   const characterService = new CharacterService(characterRepo, cache);
   const inventoryService = new InventoryService(inventoryRepo, cache);
   const profileService = new ProfileService(profileRepo, cache);
+  const battleService = new BattleService();
 
   const registrationService = new RegistrationService(
     playerService,
@@ -94,6 +96,7 @@ async function bootstrap(): Promise<void> {
   client.characterService = characterService;
   client.economyService = economyService;
   client.profileService = profileService;
+  client.battleService = battleService;
 
   // ── 5. Load commands, events, buttons, modals ───────────────────────────
   const commandsDir = resolve(__dirname, 'commands');

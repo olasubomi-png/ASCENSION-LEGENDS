@@ -1,3 +1,4 @@
+
 import { CACHE_KEYS, CACHE_TTL, ID_PREFIXES } from '../../constants/index.js';
 import type { IProfileService, ProfileData } from '../../interfaces/IProfileService.js';
 import type { ICacheService } from '../../interfaces/index.js';
@@ -70,6 +71,22 @@ export class ProfileService implements IProfileService {
       return ok(this.mapToData(updated));
     } catch (error) {
       log.error('Failed to update power rating', { err: String(error), userId });
+      return err(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  async recordBattleResult(userId: string, won: boolean): Promise<Result<ProfileData>> {
+    try {
+      const increment: Partial<IProfileSchema> & Record<string, unknown> = {
+        battlesTotal: 1,
+        ...(won ? { battlesWon: 1 } : { battlesLost: 1 }),
+      };
+      const updated = await this.profileRepo.increment(userId, increment);
+      if (!updated) return err(new Error('Profile not found'));
+      await this.cache.del(`${CACHE_KEYS.PLAYER}profile:${updated.discordId}`);
+      return ok(this.mapToData(updated));
+    } catch (error) {
+      log.error('Failed to record battle result', { err: String(error), userId, won });
       return err(error instanceof Error ? error : new Error(String(error)));
     }
   }

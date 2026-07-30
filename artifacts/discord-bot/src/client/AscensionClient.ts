@@ -9,6 +9,7 @@ import type { CharacterService } from '../services/character/CharacterService.js
 import type { EconomyService } from '../services/economy/EconomyService.js';
 import type { ProfileService } from '../services/profile/ProfileService.js';
 import type { RegistrationService } from '../services/registration/RegistrationService.js';
+import type { BattleService } from '../services/battle/BattleService.js';
 import type {
   AutocompleteHandler,
   ButtonHandler,
@@ -34,6 +35,7 @@ export class AscensionClient extends Client {
   public characterService?: CharacterService;
   public economyService?: EconomyService;
   public profileService?: ProfileService;
+  public battleService?: BattleService;
 
   constructor() {
     super({
