@@ -269,9 +269,10 @@ const INVOKER_SKILLS: SkillDefinition[] = [
     damageType: 'magic',
     element: 'void',
     requirements: { energyCost: 20, cooldown: 3, allowedClasses: ['invoker'] },
+    // drain resolves as: damage(value multiplier) + self-heal(fraction of damage dealt).
+    // Do NOT add a separate 'damage' effect here — resolveDrain already applies the hit.
     effects: [
-      { type: 'damage', value: 0.8, valueType: 'multiplier' },
-      { type: 'drain', value: 0.5, valueType: 'multiplier' },
+      { type: 'drain', value: 0.8, valueType: 'multiplier' },
     ],
   },
   // Active — void rift (debuff + silence)

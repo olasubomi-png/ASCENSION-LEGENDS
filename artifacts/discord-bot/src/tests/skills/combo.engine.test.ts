@@ -14,10 +14,18 @@ describe('ComboEngine', () => {
       expect(state.actorId).toBe('actor_1');
     });
 
-    it('extends an existing chain within the window', () => {
+    it('extends an existing chain when the skill is a valid follow-up', () => {
+      // basic_attack → combo_finisher is a valid follow-up pair
+      engine.recordSkillUse('actor_1', 'basic_attack', 1);
+      const state = engine.recordSkillUse('actor_1', 'combo_finisher', 2);
+      expect(state.chain).toEqual(['basic_attack', 'combo_finisher']);
+    });
+
+    it('resets the chain when an irrelevant skill breaks it', () => {
+      // vanguard_shield_bash is NOT in basic_attack.comboFollowUps → chain breaks
       engine.recordSkillUse('actor_1', 'basic_attack', 1);
       const state = engine.recordSkillUse('actor_1', 'vanguard_shield_bash', 2);
-      expect(state.chain).toEqual(['basic_attack', 'vanguard_shield_bash']);
+      expect(state.chain).toEqual(['vanguard_shield_bash']); // fresh chain, not extended
     });
 
     it('starts a fresh chain if the window expired', () => {
@@ -63,9 +71,10 @@ describe('ComboEngine', () => {
       expect(engine.chainLength('actor_1', 1)).toBe(0);
     });
 
-    it('returns correct length', () => {
+    it('returns correct length for a valid chain', () => {
+      // basic_attack → combo_finisher is a valid continuation
       engine.recordSkillUse('actor_1', 'basic_attack', 1);
-      engine.recordSkillUse('actor_1', 'wanderer_quick_strike', 2);
+      engine.recordSkillUse('actor_1', 'combo_finisher', 2);
       expect(engine.chainLength('actor_1', 2)).toBe(2);
     });
   });

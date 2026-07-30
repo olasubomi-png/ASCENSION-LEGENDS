@@ -167,8 +167,9 @@ export class PassiveSkillEngine {
         value: effect.value,
         duration: effect.duration ?? 1,
       });
-    } else if (effect.type === 'hot' || effect.type === 'heal') {
-      callbacks.onEnergyRestore(effect.value);
+    } else if (effect.type === 'heal' || effect.type === 'hot') {
+      // heal / hot restore HP, not energy
+      callbacks.onHeal(effect.value);
     }
   }
 }

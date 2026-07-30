@@ -42,18 +42,26 @@ export class ComboEngine {
 
     const existing = this.states.get(actorId);
 
-    // Extend existing chain if within window
+    // Extend existing chain only if this skill is a valid follow-up in the window.
+    // An irrelevant skill (not in availableFollowUps) breaks the chain — reset it.
     if (existing && existing.expiresAtRound >= round) {
-      const newChain = [...existing.chain, skillId];
-      const state: ComboState = {
-        actorId,
-        chain: newChain,
-        availableFollowUps: followUps,
-        expiresAtRound: round + COMBO_WINDOW_ROUNDS,
-      };
-      this.states.set(actorId, state);
-      log.debug('Combo chain extended', { actorId, chain: newChain });
-      return state;
+      const isValidContinuation = existing.availableFollowUps.includes(skillId);
+
+      if (isValidContinuation) {
+        const newChain = [...existing.chain, skillId];
+        const state: ComboState = {
+          actorId,
+          chain: newChain,
+          availableFollowUps: followUps,
+          expiresAtRound: round + COMBO_WINDOW_ROUNDS,
+        };
+        this.states.set(actorId, state);
+        log.debug('Combo chain extended', { actorId, chain: newChain });
+        return state;
+      }
+
+      // Irrelevant skill — fall through to start a fresh chain
+      log.debug('Combo chain broken by irrelevant skill', { actorId, skillId });
     }
 
     // Start a new chain
