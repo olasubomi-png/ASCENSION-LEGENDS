@@ -6,6 +6,7 @@ export {
 
 export {
   getRedisClient,
+  getBullMQConnectionOptions,
   connectRedis,
   disconnectRedis,
   isRedisConnected,

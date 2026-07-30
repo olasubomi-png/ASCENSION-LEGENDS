@@ -2,7 +2,7 @@ import { Worker } from 'bullmq';
 import type { Job } from 'bullmq';
 
 import { QUEUE_NAMES, JOB_NAMES } from '../constants/jobs.js';
-import { getRedisClient } from '../database/redis.js';
+import { getBullMQConnectionOptions } from '../database/redis.js';
 import { childLogger } from '../utils/logger.js';
 
 const log = childLogger('RenderWorker');
@@ -42,7 +42,7 @@ export function startRenderWorker(): Worker {
   if (worker) return worker;
 
   worker = new Worker(QUEUE_NAMES.RENDER, processRenderJob, {
-    connection: getRedisClient(),
+    connection: getBullMQConnectionOptions(),
     concurrency: 2,
   });
 

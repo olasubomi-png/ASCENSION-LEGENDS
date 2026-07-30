@@ -2,7 +2,7 @@ import { Queue } from 'bullmq';
 
 import { env } from '../config/index.js';
 import { QUEUE_NAMES } from '../constants/jobs.js';
-import { getRedisClient } from '../database/redis.js';
+import { getBullMQConnectionOptions } from '../database/redis.js';
 import { childLogger } from '../utils/logger.js';
 
 const log = childLogger('Queues');
@@ -17,7 +17,11 @@ const defaultJobOptions = {
   removeOnFail: { count: 500 },
 };
 
-const connection = { connection: getRedisClient() };
+// Pass connection options (not a Redis instance) so BullMQ manages its own
+// dedicated connections. Passing a Redis instance causes BullMQ to call
+// .duplicate() + .connect() on it, which throws when ioredis has already
+// auto-connected. See redis.ts getBullMQConnectionOptions for details.
+const connection = { connection: getBullMQConnectionOptions() };
 const prefix = env.BULLMQ_PREFIX;
 
 export const renderQueue = new Queue(QUEUE_NAMES.RENDER, {

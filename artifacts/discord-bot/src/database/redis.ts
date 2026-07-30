@@ -1,3 +1,4 @@
+import type { RedisOptions } from 'ioredis';
 import { Redis } from 'ioredis';
 
 import { env } from '../config/index.js';
@@ -7,6 +8,37 @@ const log = childLogger('redis');
 
 let _client: Redis | null = null;
 
+/**
+ * ioredis options for BullMQ queues and workers.
+ *
+ * BullMQ must receive a plain options object — NOT a Redis instance.
+ * When given a Redis instance, BullMQ calls .duplicate() then .connect() on
+ * the copy, which throws "Redis is already connecting/connected" because
+ * ioredis auto-connects on instantiation. Passing options lets BullMQ manage
+ * its own internal connections without touching our singleton.
+ *
+ * BullMQ requires maxRetriesPerRequest: null and enableReadyCheck: false.
+ */
+export function getBullMQConnectionOptions(): RedisOptions {
+  return {
+    host: env.REDIS_HOST,
+    port: env.REDIS_PORT,
+    password: env.REDIS_PASSWORD ?? undefined,
+    tls: env.REDIS_TLS ? {} : undefined,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    retryStrategy: (times: number): number | null => {
+      if (times > 10) return null;
+      return Math.min(times * 200, 2000);
+    },
+  };
+}
+
+/**
+ * Returns the app-wide Redis singleton used by CacheService and any direct
+ * ioredis callers. ioredis connects automatically on instantiation — no
+ * explicit .connect() call is needed or safe to make.
+ */
 export function getRedisClient(): Redis {
   if (_client) return _client;
 
@@ -17,11 +49,6 @@ export function getRedisClient(): Redis {
     tls: env.REDIS_TLS ? {} : undefined,
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
-    // lazyConnect: true is required so that BullMQ's internal .duplicate() +
-    // .connect() pattern works correctly. Without it, duplicates auto-connect
-    // immediately and BullMQ's subsequent .connect() call throws
-    // "Redis is already connecting/connected".
-    lazyConnect: true,
     retryStrategy: (times: number): number | null => {
       if (times > 10) return null;
       return Math.min(times * 200, 2000);
@@ -39,26 +66,25 @@ export function getRedisClient(): Redis {
 }
 
 /**
- * Connect the Redis singleton and wait for it to be ready.
- * Guards against being called on an already-connecting/connected client
- * so it is safe to call multiple times during startup.
+ * Wait for the Redis singleton to reach the ready state.
+ * ioredis connects automatically — this function only waits; it never calls
+ * .connect() (doing so would throw "Redis is already connecting/connected").
  */
 export async function connectRedis(): Promise<void> {
   const client = getRedisClient();
-
-  // Already up — nothing to do.
   if (client.status === 'ready') return;
 
-  // Not yet started — initiate the connection.
-  if (client.status === 'wait') {
-    await client.connect();
-    return;
-  }
-
-  // Mid-connection (status: 'connecting' | 'connect') — just wait for ready.
   await new Promise<void>((resolve, reject) => {
-    client.once('ready', resolve);
-    client.once('error', reject);
+    const onReady = (): void => {
+      client.removeListener('error', onError);
+      resolve();
+    };
+    const onError = (err: Error): void => {
+      client.removeListener('ready', onReady);
+      reject(err);
+    };
+    client.once('ready', onReady);
+    client.once('error', onError);
   });
 }
 
