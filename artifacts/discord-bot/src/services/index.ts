@@ -8,3 +8,4 @@ export { RegistrationService } from './registration/RegistrationService.js';
 export { BattleEngine } from './battle/BattleEngine.js';
 export { BattleService } from './battle/BattleService.js';
 export type * from './battle/types.js';
+export { SkillsService } from './skills/SkillsService.js';

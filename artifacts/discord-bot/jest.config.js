@@ -42,6 +42,7 @@ export default {
     },
   },
   coverageReporters: ['text', 'lcov', 'html'],
+  setupFiles: ['./src/tests/setup.ts'],
   clearMocks: true,
   resetMocks: true,
 };
