@@ -17,7 +17,9 @@ export function getRedisClient(): Redis {
     tls: env.REDIS_TLS ? {} : undefined,
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
-    lazyConnect: true,
+    // No lazyConnect — ioredis connects automatically on creation.
+    // Calling .connect() on an already-connecting client throws; omitting
+    // lazyConnect means we never need to call it manually.
     retryStrategy: (times: number): number | null => {
       if (times > 10) return null;
       return Math.min(times * 200, 2000);
@@ -34,8 +36,18 @@ export function getRedisClient(): Redis {
   return _client;
 }
 
+/**
+ * Wait for the Redis client to reach the ready state.
+ * Does NOT call .connect() — ioredis manages the connection automatically.
+ * Safe to call multiple times or before any commands are issued.
+ */
 export async function connectRedis(): Promise<void> {
-  await getRedisClient().connect();
+  const client = getRedisClient();
+  if (client.status === 'ready') return;
+  await new Promise<void>((resolve, reject) => {
+    client.once('ready', resolve);
+    client.once('error', reject);
+  });
 }
 
 export async function disconnectRedis(): Promise<void> {
