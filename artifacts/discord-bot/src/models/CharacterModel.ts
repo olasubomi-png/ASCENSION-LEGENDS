@@ -63,8 +63,8 @@ const statsSchema = new Schema<ICharacterStats>(
 const characterSchema = new Schema<ICharacterSchema>(
   {
     _id: { type: String, required: true },
-    characterId: { type: String, required: true, unique: true, index: true },
-    userId: { type: String, required: true, index: true },
+    characterId: { type: String, required: true, unique: true },
+    userId: { type: String, required: true },
     discordId: { type: String, required: true, index: true },
     name: { type: String, required: true, minlength: 2, maxlength: 24 },
     classId: { type: String, required: true },

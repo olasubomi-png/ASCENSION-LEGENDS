@@ -17,6 +17,8 @@
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { Events } from 'discord.js';
+
 import { classSelectHandler } from './buttons/index.js';
 import { CacheService } from './cache/index.js';
 import { AscensionClient, loadCommands, loadEvents } from './client/index.js';
@@ -123,7 +125,7 @@ async function bootstrap(): Promise<void> {
   const healthServer = startHealthServer(env.PORT);
 
   // ── 8. Discord ready hook ───────────────────────────────────────────────
-  client.once('ready', () => setDiscordReady(true));
+  client.once(Events.ClientReady, () => setDiscordReady(true));
 
   // ── 9. Login ─────────────────────────────────────────────────────────────
   await client.login(env.DISCORD_TOKEN);
